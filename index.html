@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ask-A-Solutions-Guy Team Dashboard</title>
+    <title>Solutions Team Dashboard</title>
     
     <!-- Fonts: Inter for that clean Yoco look -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -274,13 +274,19 @@
                             </div>
                         </div>
 
-                        <!-- Reply Box (Placeholder for now) -->
+                        <!-- Reply Box (Functional) -->
                         <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200 border-dashed text-center">
                             <h3 class="text-sm font-bold text-slate-700 mb-2">Reply to Slack</h3>
-                            <p class="text-xs text-slate-500 mb-4">Connect Zapier Webhook to enable direct replies.</p>
-                             <div class="opacity-50 pointer-events-none filter blur-[0.5px]">
-                                <textarea disabled class="w-full p-3 text-sm border rounded-lg bg-white mb-3" rows="2" placeholder="Write your reply here..."></textarea>
-                                <button disabled class="bg-slate-800 text-white px-6 py-2 rounded-lg text-sm font-bold">Send Reply</button>
+                            <p v-if="!isWebhookConfigured" class="text-xs text-red-500 mb-4 bg-red-50 p-2 rounded border border-red-100">⚠️ Please configure the ZAPIER_WEBHOOK_URL in the code to enable this.</p>
+                            <p v-else class="text-xs text-slate-500 mb-4">This will post a reply to the original Slack thread.</p>
+                             
+                            <div :class="{'opacity-50 pointer-events-none': !isWebhookConfigured}">
+                                <textarea v-model="replyText" class="w-full p-3 text-sm border rounded-lg bg-white mb-3 focus:ring-2 focus:ring-brand-500 outline-none" rows="3" placeholder="Write your reply here..."></textarea>
+                                <button @click="sendReply" :disabled="sendingReply || !replyText" 
+                                    class="bg-slate-800 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto transition-colors">
+                                    <i v-if="sendingReply" class="ph-bold ph-spinner animate-spin"></i>
+                                    {{ sendingReply ? 'Sending...' : 'Send Reply to Slack' }}
+                                </button>
                              </div>
                         </div>
 
@@ -305,9 +311,12 @@
 <script>
     const { createClient } = supabase;
 
-    // UPDATED CREDENTIALS
+    // CONFIGURATION: 
     const SUPABASE_URL = 'https://dloeemdnthbuggjdgcqr.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2VlbWRudGhidWdnamRnY3FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5ODM5NjcsImV4cCI6MjA4NjU1OTk2N30.lx-rCwbkxHEsb4CX6M6NORHDauL1qpraaFKIIpHvvig';
+    
+    // TODO: PASTE YOUR ZAPIER WEBHOOK URL HERE FROM "PHASE 2"
+    const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/21408403/uex0g0l/'; 
 
     const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
     const { createApp, ref, computed, onMounted, watch } = Vue;
@@ -320,6 +329,11 @@
             const selectedTicket = ref(null);
             const loading = ref(false);
             const saving = ref(false);
+            const sendingReply = ref(false);
+            const replyText = ref('');
+
+            // Check if user has configured webhook
+            const isWebhookConfigured = computed(() => ZAPIER_WEBHOOK_URL && ZAPIER_WEBHOOK_URL.length > 5);
 
             // Form State
             const form = ref({
@@ -339,7 +353,6 @@
                 
                 if (error) {
                     console.error('Error:', error);
-                    // Friendly error for the user in the UI could be added here
                 } else {
                     tickets.value = data || [];
                 }
@@ -362,6 +375,7 @@
             // 3. Selection Logic
             const selectTicket = (ticket) => {
                 selectedTicket.value = ticket;
+                replyText.value = ''; // Reset reply box
                 // Copy values to form for editing
                 form.value = {
                     status: ticket.status || 'Open',
@@ -396,7 +410,49 @@
                 saving.value = false;
             };
 
-            // 5. Helper: Export CSV
+            // 5. Send Reply (via Zapier)
+            const sendReply = async () => {
+                if (!replyText.value || !selectedTicket.value) return;
+                
+                sendingReply.value = true;
+
+                try {
+                    // Send data to Zapier Webhook
+                    // Note: 'no-cors' mode is used because we can't read the response from Zapier 
+                    // due to browser security, but the request will still succeed.
+                    await fetch(ZAPIER_WEBHOOK_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', 
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            reply_text: replyText.value,
+                            slack_ts: selectedTicket.value.slack_ts,
+                            slack_channel: selectedTicket.value.slack_channel,
+                            ticket_id: selectedTicket.value.id
+                        })
+                    });
+
+                    // Optimistic Success
+                    alert('Reply sent to Slack!');
+                    replyText.value = '';
+                    
+                    // Optionally update status to "In Progress" if it was "Open"
+                    if (form.value.status === 'Open') {
+                        form.value.status = 'In Progress';
+                        saveChanges();
+                    }
+
+                } catch (e) {
+                    console.error('Zapier Error:', e);
+                    alert('Failed to trigger Zapier webhook.');
+                } finally {
+                    sendingReply.value = false;
+                }
+            };
+
+            // 6. Helper: Export CSV
             const exportCSV = () => {
                 let csvContent = "data:text/csv;charset=utf-8,";
                 csvContent += "ID,Date,Sender,Client,Issue Category,Status,Message,Notes\n";
@@ -451,7 +507,8 @@
 
             return { 
                 tickets, filteredTickets, selectedTicket, form, loading, saving, searchQuery, filterStatus,
-                fetchTickets, selectTicket, saveChanges, exportCSV, formatDate, formatDateFull, getStatusColor 
+                replyText, sendingReply, isWebhookConfigured,
+                fetchTickets, selectTicket, saveChanges, sendReply, exportCSV, formatDate, formatDateFull, getStatusColor 
             };
         }
     }).mount('#app');
