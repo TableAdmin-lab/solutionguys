@@ -124,9 +124,9 @@
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex items-center gap-2">
                             <div class="w-7 h-7 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 text-xs flex items-center justify-center font-bold border border-slate-200">
-                                {{ ticket.sender ? ticket.sender.charAt(0).toUpperCase() : '?' }}
+                                {{ getSmartSender(ticket).charAt(0).toUpperCase() }}
                             </div>
-                            <span class="text-sm font-semibold text-slate-800 truncate max-w-[150px]">{{ ticket.sender || 'Unknown' }}</span>
+                            <span class="text-sm font-semibold text-slate-800 truncate max-w-[150px]">{{ getSmartSender(ticket) }}</span>
                         </div>
                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border" 
                               :class="getStatusColor(ticket.status)">
@@ -134,12 +134,12 @@
                         </span>
                     </div>
                     
-                    <p class="text-slate-600 text-sm line-clamp-2 leading-relaxed mb-3">{{ ticket.message }}</p>
+                    <p class="text-slate-600 text-sm line-clamp-2 leading-relaxed mb-3 font-mono text-xs bg-slate-50 p-1 rounded">{{ getSmartSummary(ticket.message) }}</p>
                     
                     <div class="flex items-center gap-2 mt-auto">
                         <!-- Client Badge -->
-                        <span v-if="ticket.client_name" class="flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100 font-medium">
-                            <i class="ph-bold ph-buildings"></i> {{ ticket.client_name }}
+                        <span v-if="ticket.client_name || getSmartClient(ticket.message)" class="flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100 font-medium">
+                            <i class="ph-bold ph-buildings"></i> {{ ticket.client_name || getSmartClient(ticket.message) }}
                         </span>
                         <!-- Date -->
                         <span class="text-[10px] text-slate-400 ml-auto font-medium">{{ formatDate(ticket.created_at) }}</span>
@@ -201,14 +201,17 @@
                         <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                             <div class="flex items-center gap-4 mb-5 pb-5 border-b border-slate-50">
                                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-cyan-400 text-white flex items-center justify-center font-bold text-xl shadow-md ring-2 ring-white">
-                                    {{ selectedTicket.sender ? selectedTicket.sender.charAt(0).toUpperCase() : '?' }}
+                                    {{ getSmartSender(selectedTicket).charAt(0).toUpperCase() }}
                                 </div>
                                 <div>
-                                    <div class="font-bold text-slate-900 text-lg">{{ selectedTicket.sender }}</div>
+                                    <div class="font-bold text-slate-900 text-lg">{{ getSmartSender(selectedTicket) }}</div>
                                     <div class="text-xs font-medium text-brand-600 bg-brand-50 inline-block px-2 py-0.5 rounded mt-0.5">Requester</div>
                                 </div>
                             </div>
-                            <p class="text-slate-700 leading-relaxed whitespace-pre-wrap text-base">{{ selectedTicket.message }}</p>
+                            <!-- Display message with whitespace preserved -->
+                            <div class="text-slate-700 leading-relaxed whitespace-pre-wrap text-base font-mono bg-slate-50 p-4 rounded-lg border border-slate-100 text-sm">
+                                {{ selectedTicket.message }}
+                            </div>
                         </div>
 
                         <!-- Data & Classification Form -->
@@ -315,7 +318,7 @@
     const SUPABASE_URL = 'https://dloeemdnthbuggjdgcqr.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsb2VlbWRudGhidWdnamRnY3FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5ODM5NjcsImV4cCI6MjA4NjU1OTk2N30.lx-rCwbkxHEsb4CX6M6NORHDauL1qpraaFKIIpHvvig';
     
-    // TODO: PASTE YOUR ZAPIER WEBHOOK URL HERE FROM "PHASE 2"
+    // ZAPIER HOOK
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/21408403/uex0g0l/'; 
 
     const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -372,15 +375,69 @@
                 });
             });
 
-            // 3. Selection Logic
+            // Smart Helper: Extract Sender from "Ticket logged by: ..."
+            const getSmartSender = (ticket) => {
+                if (!ticket.message) return ticket.sender || 'Unknown';
+                // Regex matches "Ticket logged by: [Name]" at start or newline
+                const match = ticket.message.match(/(?:Ticket logged by):\s*(.+?)(?:\n|$)/i);
+                if (match) return match[1].trim();
+                return ticket.sender || 'Unknown';
+            };
+
+            // Smart Helper: Extract Client for the Badge
+            const getSmartClient = (message) => {
+                if (!message) return '';
+                const match = message.match(/(?:Client|Client Name):\s*(.+?)(?:\n|$)/i);
+                return match ? match[1].trim() : '';
+            };
+
+            // Smart Helper: Extract "Details" for the list view summary
+            const getSmartSummary = (message) => {
+                if (!message) return 'No details provided';
+                const match = message.match(/(?:Details):\s*(.+)(?:\n|$)/i);
+                // If we found "Details:", return that. Otherwise return truncated message.
+                if (match) return match[1].trim().substring(0, 100);
+                return message.substring(0, 100);
+            };
+
+            // 3. Selection Logic (SMART AUTO PARSING)
             const selectTicket = (ticket) => {
                 selectedTicket.value = ticket;
                 replyText.value = ''; // Reset reply box
+                
+                // Start with values stored in DB (if any)
+                let client = ticket.client_name || '';
+                let category = ticket.issue_category || '';
+
+                // SMART PARSE: Extract from Message (Matches your Slack Workflow)
+                if (ticket.message) {
+                    // Extract Client
+                    if (!client) {
+                        const clientMatch = ticket.message.match(/(?:Client|Client Name):\s*(.+?)(?:\n|$)/i);
+                        if (clientMatch) client = clientMatch[1].trim();
+                    }
+                    
+                    // Extract Issue Type
+                    if (!category) {
+                        const issueMatch = ticket.message.match(/(?:Issue Type|Issue):\s*(.+?)(?:\n|$)/i);
+                        if (issueMatch) {
+                            const rawIssue = issueMatch[1].trim();
+                            // Basic mapping to your dropdown values
+                            if (rawIssue.toLowerCase().includes('bug')) category = 'Bug';
+                            else if (rawIssue.toLowerCase().includes('feature')) category = 'Feature Request';
+                            else if (rawIssue.toLowerCase().includes('access')) category = 'Access/Permissions';
+                            else if (rawIssue.toLowerCase().includes('question')) category = 'Question';
+                            else if (rawIssue.toLowerCase().includes('data')) category = 'Data Issue';
+                            else category = 'Question'; // Default fallback
+                        }
+                    }
+                }
+
                 // Copy values to form for editing
                 form.value = {
                     status: ticket.status || 'Open',
-                    issue_category: ticket.issue_category || '',
-                    client_name: ticket.client_name || '',
+                    issue_category: category,
+                    client_name: client,
                     notes: ticket.notes || ''
                 };
             };
@@ -418,8 +475,6 @@
 
                 try {
                     // Send data to Zapier Webhook
-                    // Note: 'no-cors' mode is used because we can't read the response from Zapier 
-                    // due to browser security, but the request will still succeed.
                     await fetch(ZAPIER_WEBHOOK_URL, {
                         method: 'POST',
                         mode: 'no-cors', 
@@ -459,10 +514,11 @@
 
                 tickets.value.forEach(row => {
                     const date = new Date(row.created_at).toLocaleDateString();
+                    const sender = getSmartSender(row); // Use smart sender in export too
                     const cleanMsg = (row.message || '').replace(/"/g, '""').replace(/,/g, ';').replace(/\n/g, ' '); 
                     const cleanNotes = (row.notes || '').replace(/"/g, '""').replace(/,/g, ';').replace(/\n/g, ' ');
                     
-                    csvContent += `${row.id},${date},${row.sender},${row.client_name},${row.issue_category},${row.status},"${cleanMsg}","${cleanNotes}"\n`;
+                    csvContent += `${row.id},${date},${sender},${row.client_name},${row.issue_category},${row.status},"${cleanMsg}","${cleanNotes}"\n`;
                 });
 
                 const encodedUri = encodeURI(csvContent);
@@ -508,7 +564,8 @@
             return { 
                 tickets, filteredTickets, selectedTicket, form, loading, saving, searchQuery, filterStatus,
                 replyText, sendingReply, isWebhookConfigured,
-                fetchTickets, selectTicket, saveChanges, sendReply, exportCSV, formatDate, formatDateFull, getStatusColor 
+                fetchTickets, selectTicket, saveChanges, sendReply, exportCSV, formatDate, formatDateFull, getStatusColor,
+                getSmartSender, getSmartClient, getSmartSummary
             };
         }
     }).mount('#app');
