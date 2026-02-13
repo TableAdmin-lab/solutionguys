@@ -471,7 +471,7 @@
         setup() {
             const currentView = ref('tickets'); 
             const tickets = ref([]); 
-            const agentName = ref('Solutions Team'); // Default Name
+            const agentName = ref('Solutions Team'); 
             const searchQuery = ref('');
             const filterStatus = ref('All');
             const selectedTicket = ref(null);
@@ -480,19 +480,15 @@
             const sendingReply = ref(false);
             const replyText = ref('');
             
-            // Stats Object
             const stats = ref({ total: 0, open: 0, resolved: 0 });
 
-            // Chart Instances
             let categoryChartInstance = null;
             let requesterChartInstance = null;
             let clientChartInstance = null;
             let statusChartInstance = null;
 
-            // Check if user has configured webhook
             const isWebhookConfigured = computed(() => ZAPIER_WEBHOOK_URL && ZAPIER_WEBHOOK_URL.length > 5);
 
-            // Form State
             const form = ref({
                 status: 'Open',
                 issue_category: '',
@@ -500,7 +496,6 @@
                 notes: ''
             });
 
-            // 1. Fetch Tickets & GROUP THEM
             const fetchTickets = async () => {
                 loading.value = true;
                 const { data, error } = await sb
@@ -512,37 +507,27 @@
                     console.error('Error:', error);
                 } else {
                     const allRows = data || [];
-                    
-                    // 1. Separate Parents (Tickets) from Children (Replies)
-                    // If thread_ts is missing or empty, treat as parent.
-                    // Also check for user's explicit request to hide bot spam loops.
                     const parents = [];
                     const repliesMap = {};
 
                     allRows.forEach(row => {
-                        // Cleanup logic: Hide infinite loop bot messages
                         const msg = (row.message || '').toLowerCase();
                         if (msg.includes('regarding your request') && msg.includes('ticket id')) return;
 
                         if (row.thread_ts) {
-                            // It's a reply
                             if (!repliesMap[row.thread_ts]) repliesMap[row.thread_ts] = [];
                             repliesMap[row.thread_ts].push(row);
                         } else {
-                            // It's a main ticket
                             parents.push(row);
                         }
                     });
 
-                    // 2. Attach replies to parents
                     parents.forEach(p => {
-                        // Sort replies by date ascending (oldest first)
                         const relatedReplies = repliesMap[p.slack_ts] || [];
                         p.replies = relatedReplies.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
                     });
 
                     tickets.value = parents;
-                    
                     calculateStats();
                     if (currentView.value === 'analytics') {
                         nextTick(() => renderCharts());
@@ -551,18 +536,15 @@
                 loading.value = false;
             };
 
-            // Switch View Logic
             const switchView = (view) => {
                 currentView.value = view;
                 if (view === 'analytics') {
-                    // Wait for DOM update so canvas exists
                     nextTick(() => {
                         renderCharts();
                     });
                 }
             };
 
-            // Calculate Basic Stats
             const calculateStats = () => {
                 const total = tickets.value.length;
                 const open = tickets.value.filter(t => t.status !== 'Resolved').length;
@@ -570,10 +552,8 @@
                 stats.value = { total, open, resolved };
             };
 
-            // Helper: Normalize text
             const normalizeText = (text) => {
                 if (!text) return 'Unknown';
-                // Remove leading @ and format
                 return text.trim().replace(/^@/, '')
                     .toLowerCase()
                     .replace(/\s+/g, ' ')
@@ -582,7 +562,6 @@
                     .join(' ');
             };
 
-            // Render Charts
             const renderCharts = () => {
                 const data = tickets.value;
                 const countBy = (arr, keyFn) => {
@@ -645,11 +624,6 @@
                 });
             });
 
-            // Cleanup: No longer needed for infinite loops as we filter them on load, but nice to keep
-            const cleanupBotReplies = async (allTickets) => {
-                // Logic moved to fetchTickets for performance
-            };
-
             const getSmartSender = (ticket) => {
                 let name = 'Unknown';
                 if (ticket.message) {
@@ -659,7 +633,6 @@
                 } else {
                     name = ticket.sender || 'Unknown';
                 }
-                // Remove leading @
                 return name.replace(/^@/, '');
             };
 
@@ -677,7 +650,6 @@
             };
 
             const isAgentReply = (reply) => {
-                // If it was logged by us, or has no smart-parsed sender from Slack
                 return (reply.sender === agentName.value) || (reply.sender === 'Solutions Team');
             };
 
@@ -742,16 +714,18 @@
                 }
             };
 
-            // SEND REPLY & LOG TO DB
+            // FIX: SIMPLE REQUEST TO BYPASS CORS
             const sendReply = async () => {
                 if (!replyText.value || !selectedTicket.value) return;
                 sendingReply.value = true;
 
                 try {
-                    // 1. Send to Slack (Zapier)
+                    // Send to Slack (Zapier Webhook)
+                    // We remove headers and use no-cors to make it a "simple request"
+                    // This bypasses the CORS preflight OPTIONS check.
                     await fetch(ZAPIER_WEBHOOK_URL, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        mode: 'no-cors',
                         body: JSON.stringify({
                             reply_text: replyText.value,
                             slack_ts: selectedTicket.value.slack_ts,
@@ -761,14 +735,12 @@
                         })
                     });
 
-                    // 2. Log to Supabase (so it shows in history)
-                    // We try to insert `thread_ts` here. If column doesn't exist, this might fail silently or error depending on config.
-                    // User MUST run the SQL for this to work perfectly.
+                    // Log to Supabase for the dashboard history
                     const { data, error } = await sb.from('tickets').insert({
                         message: replyText.value,
                         sender: agentName.value,
-                        slack_ts: Date.now().toString(), // Dummy ID for sorting
-                        thread_ts: selectedTicket.value.slack_ts, // LINK TO PARENT
+                        slack_ts: Date.now().toString(),
+                        thread_ts: selectedTicket.value.slack_ts,
                         status: 'Replied',
                         slack_channel: selectedTicket.value.slack_channel
                     }).select();
@@ -776,7 +748,6 @@
                     alert('Reply sent!');
                     replyText.value = '';
                     
-                    // Optimistic update: Add to local view
                     if (data && data.length > 0) {
                         if (!selectedTicket.value.replies) selectedTicket.value.replies = [];
                         selectedTicket.value.replies.push(data[0]);
@@ -812,7 +783,6 @@
                 link.click();
             };
 
-            // Helpers
             const formatDate = (dateString) => new Date(dateString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
             const formatDateFull = (dateString) => new Date(dateString).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
             const getStatusColor = (status) => {
