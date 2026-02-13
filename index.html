@@ -37,6 +37,8 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         [v-cloak] { display: none; }
@@ -54,17 +56,34 @@
 
     <!-- TOP NAVIGATION with Gradient Theme -->
     <header class="bg-gradient-to-r from-blue-700 to-cyan-500 h-16 flex items-center justify-between px-6 shrink-0 z-10 shadow-md">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white border border-white/10 shadow-sm">
-                <i class="ph-bold ph-ticket"></i>
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white border border-white/10 shadow-sm">
+                    <i class="ph-bold ph-ticket"></i>
+                </div>
+                <h1 class="font-bold text-lg tracking-tight text-white mr-4">Solutions Desk</h1>
             </div>
-            <h1 class="font-bold text-lg tracking-tight text-white">Solutions Desk</h1>
-            <span class="bg-white/20 backdrop-blur text-white text-xs px-2.5 py-0.5 rounded-full font-medium border border-white/10">{{ tickets.length }}</span>
+
+            <!-- Main Navigation Tabs -->
+            <nav class="flex space-x-1">
+                <button @click="currentView = 'tickets'" 
+                    class="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                    :class="currentView === 'tickets' ? 'bg-white text-brand-600 shadow-sm' : 'text-blue-100 hover:bg-white/10'">
+                    Help Desk
+                </button>
+                <button @click="switchView('analytics')" 
+                    class="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                    :class="currentView === 'analytics' ? 'bg-white text-brand-600 shadow-sm' : 'text-blue-100 hover:bg-white/10'">
+                    Analytics
+                </button>
+            </nav>
         </div>
 
         <div class="flex items-center gap-3">
-            <!-- Search -->
-            <div class="relative group">
+            <span v-if="currentView === 'tickets'" class="bg-white/20 backdrop-blur text-white text-xs px-2.5 py-0.5 rounded-full font-medium border border-white/10 mr-2">{{ tickets.length }} Tickets</span>
+
+            <!-- Search (Only on Tickets View) -->
+            <div v-if="currentView === 'tickets'" class="relative group">
                 <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-blue-100 group-focus-within:text-white transition-colors"></i>
                 <input v-model="searchQuery" type="text" placeholder="Search..." 
                     class="pl-9 pr-4 py-2 bg-white/10 border border-white/10 rounded-lg text-sm text-white placeholder-blue-100/70 focus:bg-white/20 focus:outline-none focus:ring-1 focus:ring-white/30 transition-all w-64">
@@ -84,8 +103,8 @@
         </div>
     </header>
 
-    <!-- MAIN CONTENT -->
-    <main class="flex-1 flex overflow-hidden">
+    <!-- VIEW: TICKETS (HELP DESK) -->
+    <main v-if="currentView === 'tickets'" class="flex-1 flex overflow-hidden">
         
         <!-- LEFT: TICKET LIST -->
         <div class="w-1/3 min-w-[350px] max-w-[500px] border-r border-slate-200 flex flex-col bg-white">
@@ -190,6 +209,10 @@
                            class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors shadow-sm">
                             Open in Slack <i class="ph-bold ph-arrow-up-right"></i>
                         </a>
+                        <!-- DELETE BUTTON -->
+                        <button @click="deleteTicket" class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors shadow-sm" title="Delete Ticket">
+                            <i class="ph-bold ph-trash"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -306,9 +329,101 @@
                 <h3 class="font-bold text-xl text-slate-700 mb-2">No Ticket Selected</h3>
                 <p class="text-sm text-slate-500 max-w-xs text-center">Select a ticket from the list on the left to view details, classify issues, or send replies.</p>
             </div>
+        </div>
+    </main>
+
+    <!-- VIEW: ANALYTICS -->
+    <main v-if="currentView === 'analytics'" class="flex-1 overflow-y-auto bg-slate-50 p-8">
+        <div class="max-w-6xl mx-auto">
+            
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Analytics Overview</h2>
+                    <p class="text-slate-500">Insights from your support tickets.</p>
+                </div>
+                <div class="text-sm text-slate-500 bg-white px-3 py-1 rounded border border-slate-200">
+                    Last updated: Just now
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 uppercase tracking-wide">Total Tickets</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ stats.total }}</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-blue-50 text-brand-600 flex items-center justify-center">
+                            <i class="ph-bold ph-ticket text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 uppercase tracking-wide">Open Backlog</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ stats.open }}</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                            <i class="ph-bold ph-tray text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 uppercase tracking-wide">Resolved</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-2">{{ stats.resolved }}</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+                            <i class="ph-bold ph-check-circle text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Breakdown by Issue Type -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-700 mb-6">Tickets by Issue Type</h3>
+                    <div class="h-64 relative">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Top Requesters -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-700 mb-6">Top Requesters</h3>
+                    <div class="h-64 relative">
+                        <canvas id="requesterChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Client Distribution -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-700 mb-6">Tickets by Client</h3>
+                    <div class="h-64 relative">
+                        <canvas id="clientChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Status Distribution -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-700 mb-6">Current Status Breakdown</h3>
+                    <div class="h-64 relative">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
 
         </div>
     </main>
+
 </div>
 
 <script>
@@ -322,10 +437,11 @@
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/21408403/uex0g0l/'; 
 
     const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { createApp, ref, computed, onMounted, watch } = Vue;
+    const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
     createApp({
         setup() {
+            const currentView = ref('tickets'); // 'tickets' or 'analytics'
             const tickets = ref([]);
             const searchQuery = ref('');
             const filterStatus = ref('All');
@@ -334,6 +450,15 @@
             const saving = ref(false);
             const sendingReply = ref(false);
             const replyText = ref('');
+            
+            // Stats Object
+            const stats = ref({ total: 0, open: 0, resolved: 0 });
+
+            // Chart Instances
+            let categoryChartInstance = null;
+            let requesterChartInstance = null;
+            let clientChartInstance = null;
+            let statusChartInstance = null;
 
             // Check if user has configured webhook
             const isWebhookConfigured = computed(() => ZAPIER_WEBHOOK_URL && ZAPIER_WEBHOOK_URL.length > 5);
@@ -358,11 +483,149 @@
                     console.error('Error:', error);
                 } else {
                     tickets.value = data || [];
+                    cleanupBotReplies(tickets.value);
+                    calculateStats();
+                    if (currentView.value === 'analytics') {
+                        nextTick(() => renderCharts());
+                    }
                 }
                 loading.value = false;
             };
 
-            // 2. Filter Logic
+            // Switch View Logic
+            const switchView = (view) => {
+                currentView.value = view;
+                if (view === 'analytics') {
+                    // Wait for DOM update so canvas exists
+                    nextTick(() => {
+                        renderCharts();
+                    });
+                }
+            };
+
+            // Calculate Basic Stats
+            const calculateStats = () => {
+                const total = tickets.value.length;
+                const open = tickets.value.filter(t => t.status !== 'Resolved').length;
+                const resolved = tickets.value.filter(t => t.status === 'Resolved').length;
+                stats.value = { total, open, resolved };
+            };
+
+            // Helper: Normalize text (Title Case, trim spaces)
+            const normalizeText = (text) => {
+                if (!text) return 'Unknown';
+                // 1. Lowercase everything
+                // 2. Replace multiple spaces with single space
+                // 3. Title case words
+                return text.toLowerCase()
+                    .trim()
+                    .replace(/\s+/g, ' ')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+            };
+
+            // Render Charts using Chart.js
+            const renderCharts = () => {
+                const data = tickets.value;
+                
+                // Helper: Count occurrences
+                const countBy = (arr, keyFn) => {
+                    const counts = {};
+                    arr.forEach(item => {
+                        const key = keyFn(item) || 'Unknown';
+                        counts[key] = (counts[key] || 0) + 1;
+                    });
+                    return counts;
+                };
+
+                // 1. Issue Type
+                const catCounts = countBy(data, t => {
+                    // Use existing category OR smart parse logic logic if empty
+                    if (t.issue_category) return t.issue_category;
+                    const msg = (t.message || '').toLowerCase();
+                    if (msg.includes('bug')) return 'Bug';
+                    if (msg.includes('feature')) return 'Feature Request';
+                    if (msg.includes('question')) return 'Question';
+                    return 'Unclassified';
+                });
+
+                if (categoryChartInstance) categoryChartInstance.destroy();
+                categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(catCounts),
+                        datasets: [{
+                            data: Object.values(catCounts),
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1']
+                        }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
+
+                // 2. Top Requesters
+                const senderCounts = countBy(data, t => {
+                    // Use normalization helper here
+                    const rawSender = getSmartSender(t);
+                    return rawSender ? normalizeText(rawSender) : 'Unknown';
+                });
+                
+                // Sort top 5
+                const sortedSenders = Object.entries(senderCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                
+                if (requesterChartInstance) requesterChartInstance.destroy();
+                requesterChartInstance = new Chart(document.getElementById('requesterChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: sortedSenders.map(i => i[0]),
+                        datasets: [{
+                            label: 'Tickets',
+                            data: sortedSenders.map(i => i[1]),
+                            backgroundColor: '#8b5cf6'
+                        }]
+                    },
+                    options: { indexAxis: 'y', maintainAspectRatio: false }
+                });
+
+                // 3. Clients
+                const clientCounts = countBy(data, t => {
+                    const rawName = t.client_name || getSmartClient(t.message);
+                    return rawName ? normalizeText(rawName) : 'Unknown';
+                });
+                const sortedClients = Object.entries(clientCounts).filter(x => x[0] !== 'Unknown' && x[0] !== '').sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+                if (clientChartInstance) clientChartInstance.destroy();
+                clientChartInstance = new Chart(document.getElementById('clientChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: sortedClients.map(i => i[0]),
+                        datasets: [{
+                            label: 'Tickets',
+                            data: sortedClients.map(i => i[1]),
+                            backgroundColor: '#0ea5e9'
+                        }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
+
+                // 4. Status
+                const statusCounts = countBy(data, t => t.status || 'Open');
+                if (statusChartInstance) statusChartInstance.destroy();
+                statusChartInstance = new Chart(document.getElementById('statusChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(statusCounts),
+                        datasets: [{
+                            label: 'Count',
+                            data: Object.values(statusCounts),
+                            backgroundColor: ['#22c55e', '#3b82f6', '#64748b'] // Align roughly with colors
+                        }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
+            };
+
+            // 2. Filter Logic (Updated to still hide anything else we want)
             const filteredTickets = computed(() => {
                 return tickets.value.filter(t => {
                     const matchesSearch = (t.sender || '').toLowerCase().includes(searchQuery.value.toLowerCase()) || 
@@ -375,10 +638,27 @@
                 });
             });
 
+            // 3. AUTO CLEANUP FUNCTION
+            const cleanupBotReplies = async (allTickets) => {
+                const ticketsToDelete = allTickets.filter(t => {
+                    const msg = (t.message || '').toLowerCase();
+                    return msg.includes('regarding your request') && msg.includes('ticket id');
+                });
+
+                if (ticketsToDelete.length === 0) return;
+
+                console.log(`Auto-deleting ${ticketsToDelete.length} bot replies from DB...`);
+                const idsToDelete = ticketsToDelete.map(t => t.id);
+                const { error } = await sb.from('tickets').delete().in('id', idsToDelete);
+                if (!error) {
+                    tickets.value = tickets.value.filter(t => !idsToDelete.includes(t.id));
+                    calculateStats(); // Recalc stats after delete
+                }
+            };
+
             // Smart Helper: Extract Sender from "Ticket logged by: ..."
             const getSmartSender = (ticket) => {
                 if (!ticket.message) return ticket.sender || 'Unknown';
-                // Regex matches "Ticket logged by: [Name]" at start or newline
                 const match = ticket.message.match(/(?:Ticket logged by):\s*(.+?)(?:\n|$)/i);
                 if (match) return match[1].trim();
                 return ticket.sender || 'Unknown';
@@ -395,45 +675,37 @@
             const getSmartSummary = (message) => {
                 if (!message) return 'No details provided';
                 const match = message.match(/(?:Details):\s*(.+)(?:\n|$)/i);
-                // If we found "Details:", return that. Otherwise return truncated message.
                 if (match) return match[1].trim().substring(0, 100);
                 return message.substring(0, 100);
             };
 
-            // 3. Selection Logic (SMART AUTO PARSING)
+            // Selection Logic (SMART AUTO PARSING)
             const selectTicket = (ticket) => {
                 selectedTicket.value = ticket;
-                replyText.value = ''; // Reset reply box
+                replyText.value = ''; 
                 
-                // Start with values stored in DB (if any)
                 let client = ticket.client_name || '';
                 let category = ticket.issue_category || '';
 
-                // SMART PARSE: Extract from Message (Matches your Slack Workflow)
                 if (ticket.message) {
-                    // Extract Client
                     if (!client) {
                         const clientMatch = ticket.message.match(/(?:Client|Client Name):\s*(.+?)(?:\n|$)/i);
                         if (clientMatch) client = clientMatch[1].trim();
                     }
-                    
-                    // Extract Issue Type
                     if (!category) {
                         const issueMatch = ticket.message.match(/(?:Issue Type|Issue):\s*(.+?)(?:\n|$)/i);
                         if (issueMatch) {
                             const rawIssue = issueMatch[1].trim();
-                            // Basic mapping to your dropdown values
                             if (rawIssue.toLowerCase().includes('bug')) category = 'Bug';
                             else if (rawIssue.toLowerCase().includes('feature')) category = 'Feature Request';
                             else if (rawIssue.toLowerCase().includes('access')) category = 'Access/Permissions';
                             else if (rawIssue.toLowerCase().includes('question')) category = 'Question';
                             else if (rawIssue.toLowerCase().includes('data')) category = 'Data Issue';
-                            else category = 'Question'; // Default fallback
+                            else category = 'Question'; 
                         }
                     }
                 }
 
-                // Copy values to form for editing
                 form.value = {
                     status: ticket.status || 'Open',
                     issue_category: category,
@@ -442,7 +714,7 @@
                 };
             };
 
-            // 4. Save Changes to DB
+            // Save Changes to DB
             const saveChanges = async () => {
                 if (!selectedTicket.value) return;
                 saving.value = true;
@@ -459,46 +731,51 @@
 
                 if (error) {
                     alert('Error saving to Supabase. Check console.');
-                    console.error(error);
                 } else {
-                    // Update local state immediately
                     Object.assign(selectedTicket.value, form.value);
+                    calculateStats(); // Update stats if status changes
                 }
                 saving.value = false;
             };
+            
+            // DELETE Ticket
+            const deleteTicket = async () => {
+                if (!selectedTicket.value) return;
+                if (!confirm('Are you sure you want to delete this ticket?')) return;
 
-            // 5. Send Reply (via Zapier)
+                const { error } = await sb.from('tickets').delete().eq('id', selectedTicket.value.id);
+
+                if (error) {
+                    alert('Error deleting ticket.');
+                } else {
+                    tickets.value = tickets.value.filter(t => t.id !== selectedTicket.value.id);
+                    selectedTicket.value = null;
+                    calculateStats(); // Update stats
+                }
+            };
+
+            // Send Reply (via Zapier)
             const sendReply = async () => {
                 if (!replyText.value || !selectedTicket.value) return;
-                
                 sendingReply.value = true;
-
                 try {
-                    // Send data to Zapier Webhook
                     await fetch(ZAPIER_WEBHOOK_URL, {
                         method: 'POST',
-                        mode: 'no-cors', 
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             reply_text: replyText.value,
                             slack_ts: selectedTicket.value.slack_ts,
                             slack_channel: selectedTicket.value.slack_channel,
-                            ticket_id: selectedTicket.value.id
+                            ticket_id: selectedTicket.value.id,
+                            sender: getSmartSender(selectedTicket.value)
                         })
                     });
-
-                    // Optimistic Success
                     alert('Reply sent to Slack!');
                     replyText.value = '';
-                    
-                    // Optionally update status to "In Progress" if it was "Open"
                     if (form.value.status === 'Open') {
                         form.value.status = 'In Progress';
                         saveChanges();
                     }
-
                 } catch (e) {
                     console.error('Zapier Error:', e);
                     alert('Failed to trigger Zapier webhook.');
@@ -507,17 +784,16 @@
                 }
             };
 
-            // 6. Helper: Export CSV
+            // Export CSV
             const exportCSV = () => {
                 let csvContent = "data:text/csv;charset=utf-8,";
                 csvContent += "ID,Date,Sender,Client,Issue Category,Status,Message,Notes\n";
 
                 tickets.value.forEach(row => {
                     const date = new Date(row.created_at).toLocaleDateString();
-                    const sender = getSmartSender(row); // Use smart sender in export too
+                    const sender = getSmartSender(row); 
                     const cleanMsg = (row.message || '').replace(/"/g, '""').replace(/,/g, ';').replace(/\n/g, ' '); 
                     const cleanNotes = (row.notes || '').replace(/"/g, '""').replace(/,/g, ';').replace(/\n/g, ' ');
-                    
                     csvContent += `${row.id},${date},${sender},${row.client_name},${row.issue_category},${row.status},"${cleanMsg}","${cleanNotes}"\n`;
                 });
 
@@ -548,23 +824,20 @@
                 }
             };
 
-            // Init
             onMounted(() => {
                 fetchTickets();
-                
-                // Realtime Listener
                 sb.channel('custom-all-channel')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
-                    console.log('Change received!', payload);
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
                     fetchTickets(); 
                 })
                 .subscribe();
             });
 
             return { 
+                currentView, switchView, stats,
                 tickets, filteredTickets, selectedTicket, form, loading, saving, searchQuery, filterStatus,
                 replyText, sendingReply, isWebhookConfigured,
-                fetchTickets, selectTicket, saveChanges, sendReply, exportCSV, formatDate, formatDateFull, getStatusColor,
+                fetchTickets, selectTicket, saveChanges, deleteTicket, sendReply, exportCSV, formatDate, formatDateFull, getStatusColor,
                 getSmartSender, getSmartClient, getSmartSummary
             };
         }
