@@ -203,7 +203,7 @@
 
                             <div v-for="reply in selectedTicket.replies" :key="reply.id" class="flex gap-4" :class="{'flex-row-reverse': isAgentReply(reply)}">
                                 <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-black text-xs shadow-sm border border-white uppercase"
-                                     :class="isAgentReply(reply) ? 'bg-slate-800 text-white' : (isBot(reply) ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600')">
+                                     :class="isAgentReply(reply) ? 'bg-slate-800 text-white' : (isBotLog(reply) ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600')">
                                     {{ (reply.sender || '?').charAt(0) }}
                                 </div>
                                 <div class="max-w-[75%] shadow-sm p-4 chat-bubble border"
@@ -211,7 +211,7 @@
                                     <div class="flex justify-between items-center mb-1.5 gap-6 opacity-70 text-[10px] font-bold">
                                         <span class="uppercase">
                                             {{ reply.sender }}
-                                            <span v-if="isBot(reply)" class="ml-2 text-[9px] font-black px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">BOT</span>
+                                            <span v-if="isBotLog(reply)" class="ml-2 text-[9px] font-black px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">BOT</span>
                                         </span>
                                         <span>{{ formatDateFull(reply.created_at) }}</span>
                                     </div>
@@ -340,12 +340,12 @@
         setup() {
             const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            const BOT_SENDERS = [
-                'workflow bot',
+            // These should be treated as "bot logs" (never tickets).
+            // IMPORTANT: DO NOT include ticket workflow bot names here, because the ticket opener is a workflow.
+            const BOT_LOG_SENDERS = [
                 'zapier',
                 'solutions desk',
-                'solutions guy',
-                'ask-for-a-solution'
+                'solutions guy'
             ];
 
             const currentView = ref('tickets');
@@ -375,10 +375,18 @@
                     .join(' ');
             };
 
-            const isBot = (row) => {
+            // ✅ Ticket workflow messages should create tickets even if sender is a workflow/bot.
+            const isTicketWorkflowMessage = (row) => {
+                const msg = (row?.message || '').toLowerCase();
+                return msg.includes('new ticket') || msg.includes('ticket logged by:');
+            };
+
+            // ✅ Bot log detection (for hiding logs + marking BOT badges), BUT allow workflow tickets.
+            const isBotLog = (row) => {
+                if (isTicketWorkflowMessage(row)) return false;
                 if (row?.is_bot === true) return true;
                 const sender = (row?.sender || '').toLowerCase();
-                return BOT_SENDERS.some(b => sender.includes(b));
+                return BOT_LOG_SENDERS.some(b => sender.includes(b));
             };
 
             const computeThreadParentTs = (row) => {
@@ -420,16 +428,20 @@
 
                 for (const row of rows) {
                     const threadKey = row.thread_parent_ts || computeThreadParentTs(row);
-                    const bot = isBot(row);
+                    const botLog = isBotLog(row);
 
                     if (isParentRow(row)) {
-                        if (!bot) {
+                        // ✅ Parent rows become tickets unless they are obvious bot/autoreply spam.
+                        // Allow workflow tickets (isTicketWorkflowMessage) to create tickets.
+                        if (!botLog || isTicketWorkflowMessage(row)) {
                             if (!parentsByThread.has(threadKey)) parentsByThread.set(threadKey, row);
                         } else {
+                            // bot parent -> keep as log, not ticket
                             if (!logsByThread.has(threadKey)) logsByThread.set(threadKey, []);
                             logsByThread.get(threadKey).push(row);
                         }
                     } else {
+                        // replies/logs
                         if (!logsByThread.has(threadKey)) logsByThread.set(threadKey, []);
                         logsByThread.get(threadKey).push(row);
                     }
@@ -441,7 +453,7 @@
                         .slice()
                         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-                    if (hideBotLogs.value) logs = logs.filter(l => !isBot(l));
+                    if (hideBotLogs.value) logs = logs.filter(l => !isBotLog(l));
 
                     // basic dedupe
                     const seen = new Set();
@@ -633,7 +645,7 @@
                             slack_channel: t.slack_channel || '',
                             log_created_at: r.created_at,
                             log_sender: r.sender || '',
-                            log_is_bot: isBot(r),
+                            log_is_bot: isBotLog(r),
                             log_source: r.source || '',
                             log_message: r.message || ''
                         });
@@ -710,7 +722,7 @@
                 exportCSV, exportXLSX,
                 formatDateFull, getStatusColor,
                 getSmartSender, getSmartClient, getSmartSummary,
-                isAgentReply, isBot
+                isAgentReply, isBotLog
             };
         }
     }).mount('#app');
