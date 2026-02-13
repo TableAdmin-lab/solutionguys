@@ -1,758 +1,719 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Solutions Team Dashboard (v2)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solutions Desk Dashboard</title>
 
-  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="10" y="14" width="44" height="36" rx="8" fill="%230066FF"/><rect x="14" y="18" width="36" height="12" rx="4" fill="%230A4FCC"/><rect x="16" y="22" width="32" height="18" rx="4" fill="%23FFFFFF"/><rect x="18.5" y="26" width="27" height="3.2" rx="1.6" fill="%23E5E7EB"/><rect x="18.5" y="31" width="10" height="6.5" rx="2" fill="%230066FF"/></svg>'>
+    <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="10" y="14" width="44" height="36" rx="8" fill="%230066FF"/><rect x="14" y="18" width="36" height="12" rx="4" fill="%230A4FCC"/><rect x="16" y="22" width="32" height="18" rx="4" fill="%23FFFFFF"/><rect x="18.5" y="26" width="27" height="3.2" rx="1.6" fill="%23E5E7EB"/><rect x="18.5" y="31" width="10" height="6.5" rx="2" fill="%230066FF"/></svg>'>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- XLSX Export -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- XLSX Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
-          colors: { brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' } }
-        }
-      }
-    };
-  </script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' } }
+                }
+            }
+        };
+    </script>
 
-  <style>
-    [v-cloak] { display: none; }
-    .scroll-hide::-webkit-scrollbar { display: none; }
-    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    .chat-bubble { position: relative; border-radius: 1.2rem; }
-    .chat-left { border-bottom-left-radius: 0.2rem; }
-    .chat-right { border-bottom-right-radius: 0.2rem; }
-  </style>
+    <style>
+        [v-cloak] { display: none; }
+        .scroll-hide::-webkit-scrollbar { display: none; }
+        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .chat-bubble { position: relative; border-radius: 1.2rem; }
+        .chat-left { border-bottom-left-radius: 0.2rem; }
+        .chat-right { border-bottom-right-radius: 0.2rem; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
 </head>
 
 <body class="bg-slate-50 text-slate-800 h-screen overflow-hidden font-sans selection:bg-brand-500 selection:text-white">
 <div id="app" v-cloak class="h-full flex flex-col">
 
-  <!-- TOP NAVIGATION -->
-  <header class="bg-gradient-to-r from-blue-700 to-cyan-500 h-16 flex items-center justify-between px-6 shrink-0 z-10 shadow-md">
-    <div class="flex items-center gap-6">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white border border-white/10 shadow-sm">
-          <i class="ph-bold ph-ticket"></i>
-        </div>
-        <h1 class="font-bold text-lg tracking-tight text-white mr-4">Solutions Desk</h1>
-      </div>
-
-      <nav class="flex space-x-1 font-semibold">
-        <button @click="currentView = 'tickets'"
-                class="px-4 py-1.5 rounded-full text-sm transition-all"
-                :class="currentView === 'tickets' ? 'bg-white text-brand-600 shadow-sm' : 'text-blue-100 hover:bg-white/10'">
-          Help Desk
-        </button>
-        <button @click="switchView('analytics')"
-                class="px-4 py-1.5 rounded-full text-sm transition-all"
-                :class="currentView === 'analytics' ? 'bg-white text-brand-600 shadow-sm' : 'text-blue-100 hover:bg-white/10'">
-          Analytics
-        </button>
-      </nav>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <div class="hidden md:flex items-center bg-white/10 rounded-lg px-3 py-1 border border-white/10">
-        <i class="ph-bold ph-user text-blue-100 mr-2 text-xs"></i>
-        <input v-model="agentName" type="text"
-               class="bg-transparent border-none text-white text-sm focus:ring-0 w-32 placeholder-blue-200 font-medium outline-none"
-               placeholder="Your Name">
-      </div>
-
-      <button @click="exportXLSX" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-50 hover:bg-white/10 rounded-lg transition-colors">
-        <i class="ph ph-file-xls"></i>
-        Export XLSX
-      </button>
-
-      <button @click="exportCSV" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-50 hover:bg-white/10 rounded-lg transition-colors">
-        <i class="ph ph-download-simple"></i>
-        Export CSV
-      </button>
-
-      <button @click="fetchTickets" class="p-2 text-blue-50 hover:bg-white/10 rounded-lg transition-colors">
-        <i class="ph-bold ph-arrows-clockwise" :class="{'animate-spin': loading}"></i>
-      </button>
-    </div>
-  </header>
-
-  <!-- MAIN TICKETS VIEW -->
-  <main v-if="currentView === 'tickets'" class="flex-1 flex overflow-hidden">
-
-    <!-- SIDEBAR -->
-    <div class="w-1/3 min-w-[350px] max-w-[500px] border-r border-slate-200 flex flex-col bg-white">
-      <div class="p-4 border-b border-slate-100 flex gap-2 overflow-x-auto scroll-hide bg-slate-50/50">
-        <button v-for="status in ['All', 'Open', 'In Progress', 'Resolved']" :key="status"
-                @click="filterStatus = status"
-                class="px-4 py-1.5 text-[11px] font-black rounded-full border transition-all whitespace-nowrap shadow-sm uppercase tracking-wide"
-                :class="filterStatus === status ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'">
-          {{ status }}
-        </button>
-
-        <label class="ml-auto flex items-center gap-2 text-[11px] font-black text-slate-500 uppercase tracking-wide">
-          <input type="checkbox" v-model="hideBotLogs" class="scale-110">
-          Hide bot logs
-        </label>
-      </div>
-
-      <div class="p-3 bg-slate-50 border-b border-slate-100">
-        <input v-model="searchQuery" placeholder="Search..."
-               class="w-full px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
-      </div>
-
-      <div class="flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50">
-        <div v-for="ticket in filteredTickets" :key="ticket.id"
-             @click="selectTicket(ticket)"
-             class="p-4 rounded-xl border cursor-pointer transition-all duration-200 group relative shadow-sm"
-             :class="selectedTicket?.id === ticket.id ? 'bg-white border-brand-500 ring-1 ring-brand-500 scale-[1.01]' : 'bg-white border-slate-200 hover:border-brand-300'">
-
-          <div class="flex justify-between items-start mb-2">
-            <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 text-[10px] flex items-center justify-center font-black border border-slate-200 uppercase">
-                {{ getSmartSender(ticket).charAt(0) }}
-              </div>
-              <span class="text-sm font-bold text-slate-800 truncate max-w-[150px]">{{ getSmartSender(ticket) }}</span>
-            </div>
-            <span class="text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-tighter"
-                  :class="getStatusColor(ticket.status)">
-              {{ ticket.status }}
-            </span>
-          </div>
-
-          <p class="text-slate-600 text-sm line-clamp-2 leading-relaxed mb-3 font-mono text-[11px] bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-            {{ getSmartSummary(ticket.message) }}
-          </p>
-
-          <div class="flex items-center gap-2 mt-auto font-bold">
-            <span v-if="ticket.client_name || getSmartClient(ticket.message)"
-                  class="flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100 truncate max-w-[140px]">
-              <i class="ph-bold ph-buildings"></i> {{ ticket.client_name || getSmartClient(ticket.message) }}
-            </span>
-            <span v-if="ticket.replies && ticket.replies.length > 0"
-                  class="flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200">
-              <i class="ph-bold ph-chat-circle-dots"></i> {{ ticket.replies.length }}
-            </span>
-          </div>
-        </div>
-
-        <div v-if="loading" class="text-center py-20">
-          <i class="ph-bold ph-spinner animate-spin text-2xl text-brand-600"></i>
-        </div>
-      </div>
-    </div>
-
-    <!-- RIGHT DETAIL PANEL -->
-    <div class="flex-1 bg-slate-50/50 flex flex-col h-full overflow-hidden relative">
-      <div v-if="selectedTicket" class="h-full flex flex-col">
-        <div class="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-start shrink-0 shadow-sm z-10">
-          <div>
-            <div class="flex items-center gap-3 mb-1">
-              <h2 class="text-xl font-black text-slate-900 tracking-tight">Ticket #{{ selectedTicket.id }}</h2>
-              <span class="text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded border"
-                    :class="getStatusColor(selectedTicket.status)">
-                {{ selectedTicket.status }}
-              </span>
-            </div>
-            <div class="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <i class="ph-fill ph-slack-logo text-brand-600"></i>
-              <span>Conversation Stream</span>
-              <span class="text-slate-300">•</span>
-              <span class="font-mono text-[11px] text-slate-400">thread: {{ selectedTicket.thread_parent_ts }}</span>
-            </div>
-          </div>
-
-          <button @click="deleteTicket"
-                  class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors shadow-sm">
-            <i class="ph-bold ph-trash"></i>
-          </button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-8">
-          <div class="max-w-3xl mx-auto space-y-10">
-
-            <!-- PARENT MESSAGE -->
-            <div class="bg-white rounded-2xl p-7 shadow-md border border-slate-200">
-              <div class="flex items-center gap-4 mb-6 pb-6 border-b border-slate-50">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-brand-600 to-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg uppercase">
-                  {{ getSmartSender(selectedTicket).charAt(0) }}
+    <!-- TOP NAVIGATION -->
+    <header class="bg-gradient-to-r from-blue-700 to-cyan-500 h-16 flex items-center justify-between px-6 shrink-0 z-10 shadow-md">
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white border border-white/10 shadow-sm">
+                    <i class="ph-bold ph-ticket"></i>
                 </div>
-                <div class="font-black text-slate-900 text-lg">{{ getSmartSender(selectedTicket) }}</div>
-              </div>
-              <div class="text-slate-700 leading-relaxed whitespace-pre-wrap text-base font-mono bg-slate-50 p-5 rounded-xl border border-slate-100 text-[13px]">
-                {{ selectedTicket.message }}
-              </div>
+                <h1 class="font-bold text-lg tracking-tight text-white mr-4">Solutions Desk</h1>
             </div>
 
-            <!-- THREAD HISTORY -->
-            <div v-if="selectedTicket.replies && selectedTicket.replies.length > 0" class="space-y-6">
-              <div class="flex items-center gap-4">
-                <div class="h-px flex-1 bg-slate-200"></div>
-                <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest px-4">Thread History</h3>
-                <div class="h-px flex-1 bg-slate-200"></div>
-              </div>
-
-              <div v-for="reply in selectedTicket.replies" :key="reply.id"
-                   class="flex gap-4"
-                   :class="{'flex-row-reverse': isAgentReply(reply)}">
-                <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-black text-xs shadow-sm border border-white uppercase"
-                     :class="isAgentReply(reply) ? 'bg-slate-800 text-white' : (isBot(reply) ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600')">
-                  {{ (reply.sender || '?').charAt(0) }}
-                </div>
-                <div class="max-w-[75%] shadow-sm p-4 chat-bubble border"
-                     :class="isAgentReply(reply) ? 'bg-slate-800 text-white border-slate-700 chat-right' : 'bg-white text-slate-700 border-slate-200 chat-left'">
-                  <div class="flex justify-between items-center mb-1.5 gap-6 opacity-70 text-[10px] font-bold">
-                    <span class="uppercase">
-                      {{ reply.sender }}
-                      <span v-if="isBot(reply)" class="ml-2 text-[9px] font-black px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">BOT</span>
-                    </span>
-                    <span>{{ formatDateFull(reply.created_at) }}</span>
-                  </div>
-                  <p class="whitespace-pre-wrap leading-relaxed text-sm">{{ reply.message }}</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- EDIT FORM -->
-            <div class="bg-white rounded-2xl p-7 shadow-md border border-slate-200">
-              <h3 class="font-black text-slate-800 mb-6 text-[12px] uppercase tracking-widest flex items-center gap-2">
-                <i class="ph-bold ph-sliders text-brand-600"></i> Classification
-              </h3>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 font-bold">
-                <div>
-                  <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Status</label>
-                  <select v-model="form.status"
-                          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                    <option value="Open">Open</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Resolved">Resolved</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Issue Type</label>
-                  <select v-model="form.issue_category"
-                          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                    <option value="">-- Select --</option>
-                    <option value="Bug">Bug Report</option>
-                    <option value="Feature Request">Feature Request</option>
-                    <option value="Access/Permissions">Access/Permissions</option>
-                    <option value="Question">Question</option>
-                    <option value="Data Issue">Data Issue</option>
-                  </select>
-                </div>
-
-                <div class="md:col-span-2">
-                  <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Client</label>
-                  <input v-model="form.client_name" type="text"
-                         class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                </div>
-
-                <div class="md:col-span-2">
-                  <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Internal Notes</label>
-                  <textarea v-model="form.notes" rows="3"
-                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
-                </div>
-              </div>
-
-              <div class="flex justify-end pt-3 border-t border-slate-100">
-                <button @click="saveChanges" :disabled="saving"
-                        class="bg-brand-600 hover:bg-brand-700 text-white px-8 py-2.5 rounded-xl text-sm font-black shadow-lg disabled:opacity-50 transition-all active:scale-95">
-                  {{ saving ? 'Saving...' : 'Update Record' }}
+            <nav class="flex space-x-1 font-semibold">
+                <button @click="currentView = 'tickets'"
+                        class="px-4 py-1.5 rounded-full text-sm transition-all"
+                        :class="currentView === 'tickets' ? 'bg-white text-brand-600 shadow-sm' : 'text-blue-100 hover:bg-white/10'">
+                    Help Desk
                 </button>
-              </div>
+                <button @click="switchView('analytics')"
+                        class="px-4 py-1.5 rounded-full text-sm transition-all"
+                        :class="currentView === 'analytics' ? 'bg-white text-brand-600 shadow-sm' : 'text-blue-100 hover:bg-white/10'">
+                    Analytics
+                </button>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="hidden md:flex items-center bg-white/10 rounded-lg px-3 py-1 border border-white/10">
+                <i class="ph-bold ph-user text-blue-100 mr-2 text-xs"></i>
+                <input v-model="agentName" type="text"
+                       class="bg-transparent border-none text-white text-sm focus:ring-0 w-36 placeholder-blue-200 font-medium outline-none"
+                       placeholder="Your Name">
             </div>
 
-            <!-- REPLY BOX -->
-            <div class="bg-slate-800 rounded-2xl p-8 text-center mb-16 shadow-xl">
-              <h3 class="text-[11px] font-black text-white mb-4 uppercase tracking-[0.2em]">Post Reply to Slack</h3>
-              <textarea v-model="replyText"
-                        class="w-full p-4 text-sm border-none rounded-xl bg-white/10 text-white placeholder-slate-400 mb-5 focus:ring-2 focus:ring-brand-500 outline-none min-h-[100px]"
-                        placeholder="Type update here..."></textarea>
-              <button @click="sendReply" :disabled="sendingReply || !replyText"
-                      class="bg-white text-slate-900 px-8 py-3 rounded-xl text-sm font-black hover:bg-brand-500 hover:text-white transition-all active:scale-95">
-                Send to Thread
-              </button>
+            <button @click="exportXLSX" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-50 hover:bg-white/10 rounded-lg transition-colors">
+                <i class="ph ph-file-xls"></i>
+                Export XLSX
+            </button>
+
+            <button @click="exportCSV" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-50 hover:bg-white/10 rounded-lg transition-colors">
+                <i class="ph ph-download-simple"></i>
+                Export CSV
+            </button>
+
+            <button @click="fetchTickets" class="p-2 text-blue-50 hover:bg-white/10 rounded-lg transition-colors">
+                <i class="ph-bold ph-arrows-clockwise" :class="{'animate-spin': loading}"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN TICKETS VIEW -->
+    <main v-if="currentView === 'tickets'" class="flex-1 flex overflow-hidden">
+
+        <!-- SIDEBAR -->
+        <div class="w-1/3 min-w-[350px] max-w-[520px] border-r border-slate-200 flex flex-col bg-white">
+            <div class="p-4 border-b border-slate-100 flex gap-2 overflow-x-auto scroll-hide bg-slate-50/50 items-center">
+                <button v-for="status in ['All', 'Open', 'In Progress', 'Resolved']" :key="status"
+                        @click="filterStatus = status"
+                        class="px-4 py-1.5 text-[11px] font-black rounded-full border transition-all whitespace-nowrap shadow-sm uppercase tracking-wide"
+                        :class="filterStatus === status ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'">
+                    {{ status }}
+                </button>
+
+                <label class="ml-auto flex items-center gap-2 text-[11px] font-black text-slate-500 uppercase tracking-wide">
+                    <input type="checkbox" v-model="hideBotLogs" class="scale-110">
+                    Hide bot logs
+                </label>
             </div>
 
-          </div>
-        </div>
-      </div>
+            <div class="p-3 bg-slate-50 border-b border-slate-100">
+                <input v-model="searchQuery" placeholder="Search..."
+                       class="w-full px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
 
-      <div v-else class="h-full flex flex-col items-center justify-center text-slate-300">
-        <i class="ph-duotone ph-ticket text-[120px] opacity-10 mb-6"></i>
-        <h3 class="font-black text-xl text-slate-400 uppercase tracking-widest">No Ticket Selected</h3>
-      </div>
-    </div>
-  </main>
+            <div class="flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50">
+                <div v-for="ticket in filteredTickets" :key="ticket.id"
+                     @click="selectTicket(ticket)"
+                     class="p-4 rounded-xl border cursor-pointer transition-all duration-200 group relative shadow-sm"
+                     :class="selectedTicket?.id === ticket.id ? 'bg-white border-brand-500 ring-1 ring-brand-500 scale-[1.01]' : 'bg-white border-slate-200 hover:border-brand-300'">
 
-  <!-- ANALYTICS VIEW -->
-  <main v-if="currentView === 'analytics'" class="flex-1 overflow-y-auto bg-slate-100/50 p-8">
-    <div class="max-w-6xl mx-auto pb-12">
-      <h2 class="text-3xl font-black text-slate-800 mb-10 tracking-tighter uppercase flex items-center gap-4">
-        <i class="ph-bold ph-chart-line-up text-brand-600"></i> Reporting Overview
-      </h2>
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 text-[10px] flex items-center justify-center font-black border border-slate-200 uppercase">
+                                {{ getSmartSender(ticket).charAt(0) }}
+                            </div>
+                            <span class="text-sm font-bold text-slate-800 truncate max-w-[160px]">{{ getSmartSender(ticket) }}</span>
+                        </div>
+                        <span class="text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-tighter"
+                              :class="getStatusColor(ticket.status)">
+                            {{ ticket.status }}
+                        </span>
+                    </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-        <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-          <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Total Tickets</p>
-          <h3 class="text-4xl font-black text-slate-800">{{ stats.total }}</h3>
-        </div>
-        <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center border-b-4 border-b-green-500">
-          <p class="text-[10px] font-black text-green-500 uppercase mb-1 tracking-widest">Active</p>
-          <h3 class="text-4xl font-black text-green-600">{{ stats.open }}</h3>
-        </div>
-        <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-          <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Resolved</p>
-          <h3 class="text-4xl font-black text-slate-700">{{ stats.resolved }}</h3>
-        </div>
-        <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-          <p class="text-[10px] font-black text-brand-500 uppercase mb-1 tracking-widest">Replies Logged</p>
-          <h3 class="text-4xl font-black text-brand-600">{{ stats.total_replies }}</h3>
-        </div>
-      </div>
+                    <p class="text-slate-600 text-sm line-clamp-2 leading-relaxed mb-3 font-mono text-[11px] bg-slate-50 p-1.5 rounded-lg border border-slate-100">{{ getSmartSummary(ticket.message) }}</p>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
-          <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Tickets per Client</h3>
-          <canvas id="clientPieChart"></canvas>
-        </div>
-        <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
-          <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Top Requesters</h3>
-          <canvas id="requesterChart"></canvas>
-        </div>
-        <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
-          <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Issue Types</h3>
-          <canvas id="categoryChart"></canvas>
-        </div>
-        <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
-          <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Pipeline Overview</h3>
-          <canvas id="statusChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </main>
+                    <div class="flex items-center gap-2 mt-auto font-bold">
+                        <span v-if="ticket.client_name || getSmartClient(ticket.message)" class="flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100 truncate max-w-[160px]">
+                            <i class="ph-bold ph-buildings"></i> {{ ticket.client_name || getSmartClient(ticket.message) }}
+                        </span>
+                        <span v-if="ticket.replies && ticket.replies.length > 0" class="flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200">
+                            <i class="ph-bold ph-chat-circle-dots"></i> {{ ticket.replies.length }}
+                        </span>
+                    </div>
+                </div>
 
+                <div v-if="loading" class="text-center py-20">
+                    <i class="ph-bold ph-spinner animate-spin text-2xl text-brand-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT DETAIL PANEL -->
+        <div class="flex-1 bg-slate-50/50 flex flex-col h-full overflow-hidden relative">
+            <div v-if="selectedTicket" class="h-full flex flex-col">
+                <div class="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-start shrink-0 shadow-sm z-10">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <h2 class="text-xl font-black text-slate-900 tracking-tight">Ticket #{{ selectedTicket.id }}</h2>
+                            <span class="text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded border"
+                                  :class="getStatusColor(selectedTicket.status)">
+                                {{ selectedTicket.status }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs font-medium text-slate-500">
+                            <i class="ph-fill ph-slack-logo text-brand-600"></i>
+                            <span>Conversation Stream</span>
+                            <span class="text-slate-300">•</span>
+                            <span class="font-mono text-[11px] text-slate-400">thread: {{ selectedTicket.thread_parent_ts }}</span>
+                        </div>
+                    </div>
+                    <button @click="deleteTicket" class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors shadow-sm">
+                        <i class="ph-bold ph-trash"></i>
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-8">
+                    <div class="max-w-3xl mx-auto space-y-10">
+                        <div class="bg-white rounded-2xl p-7 shadow-md border border-slate-200">
+                            <div class="flex items-center gap-4 mb-6 pb-6 border-b border-slate-50">
+                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-brand-600 to-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-lg uppercase">
+                                    {{ getSmartSender(selectedTicket).charAt(0) }}
+                                </div>
+                                <div class="font-black text-slate-900 text-lg">{{ getSmartSender(selectedTicket) }}</div>
+                            </div>
+                            <div class="text-slate-700 leading-relaxed whitespace-pre-wrap text-base font-mono bg-slate-50 p-5 rounded-xl border border-slate-100 text-[13px]">
+                                {{ selectedTicket.message }}
+                            </div>
+                        </div>
+
+                        <!-- THREAD HISTORY -->
+                        <div v-if="selectedTicket.replies && selectedTicket.replies.length > 0" class="space-y-6">
+                            <div class="flex items-center gap-4">
+                                <div class="h-px flex-1 bg-slate-200"></div>
+                                <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest px-4">Thread History</h3>
+                                <div class="h-px flex-1 bg-slate-200"></div>
+                            </div>
+
+                            <div v-for="reply in selectedTicket.replies" :key="reply.id" class="flex gap-4" :class="{'flex-row-reverse': isAgentReply(reply)}">
+                                <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-black text-xs shadow-sm border border-white uppercase"
+                                     :class="isAgentReply(reply) ? 'bg-slate-800 text-white' : (isBot(reply) ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600')">
+                                    {{ (reply.sender || '?').charAt(0) }}
+                                </div>
+                                <div class="max-w-[75%] shadow-sm p-4 chat-bubble border"
+                                     :class="isAgentReply(reply) ? 'bg-slate-800 text-white border-slate-700 chat-right' : 'bg-white text-slate-700 border-slate-200 chat-left'">
+                                    <div class="flex justify-between items-center mb-1.5 gap-6 opacity-70 text-[10px] font-bold">
+                                        <span class="uppercase">
+                                            {{ reply.sender }}
+                                            <span v-if="isBot(reply)" class="ml-2 text-[9px] font-black px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">BOT</span>
+                                        </span>
+                                        <span>{{ formatDateFull(reply.created_at) }}</span>
+                                    </div>
+                                    <p class="whitespace-pre-wrap leading-relaxed text-sm">{{ reply.message }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- EDIT FORM -->
+                        <div class="bg-white rounded-2xl p-7 shadow-md border border-slate-200">
+                            <h3 class="font-black text-slate-800 mb-6 text-[12px] uppercase tracking-widest flex items-center gap-2">
+                                <i class="ph-bold ph-sliders text-brand-600"></i> Classification
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 font-bold">
+                                <div>
+                                    <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Status</label>
+                                    <select v-model="form.status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                                        <option value="Open">Open</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Resolved">Resolved</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Issue Type</label>
+                                    <select v-model="form.issue_category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                                        <option value="">-- Select --</option>
+                                        <option value="Bug">Bug Report</option>
+                                        <option value="Feature Request">Feature Request</option>
+                                        <option value="Access/Permissions">Access/Permissions</option>
+                                        <option value="Question">Question</option>
+                                        <option value="Data Issue">Data Issue</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Client</label>
+                                    <input v-model="form.client_name" type="text" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-[11px] font-black text-slate-400 mb-2 uppercase tracking-tighter">Internal Notes</label>
+                                    <textarea v-model="form.notes" rows="3" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
+                                </div>
+                            </div>
+                            <div class="flex justify-end pt-3 border-t border-slate-100">
+                                <button @click="saveChanges" :disabled="saving" class="bg-brand-600 hover:bg-brand-700 text-white px-8 py-2.5 rounded-xl text-sm font-black shadow-lg disabled:opacity-50 transition-all active:scale-95">
+                                    {{ saving ? 'Saving...' : 'Update Record' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- REPLY BOX -->
+                        <div class="bg-slate-800 rounded-2xl p-8 text-center mb-16 shadow-xl">
+                            <h3 class="text-[11px] font-black text-white mb-4 uppercase tracking-[0.2em]">Post Reply to Slack</h3>
+                            <textarea v-model="replyText" class="w-full p-4 text-sm border-none rounded-xl bg-white/10 text-white placeholder-slate-400 mb-5 focus:ring-2 focus:ring-brand-500 outline-none min-h-[100px]" placeholder="Type update here..."></textarea>
+                            <button @click="sendReply" :disabled="sendingReply || !replyText" class="bg-white text-slate-900 px-8 py-3 rounded-xl text-sm font-black hover:bg-brand-500 hover:text-white transition-all active:scale-95">
+                                Send to Thread
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="h-full flex flex-col items-center justify-center text-slate-300">
+                <i class="ph-duotone ph-ticket text-[120px] opacity-10 mb-6"></i>
+                <h3 class="font-black text-xl text-slate-400 uppercase tracking-widest">No Ticket Selected</h3>
+            </div>
+        </div>
+    </main>
+
+    <!-- ANALYTICS VIEW -->
+    <main v-if="currentView === 'analytics'" class="flex-1 overflow-y-auto bg-slate-100/50 p-8">
+        <div class="max-w-6xl mx-auto pb-12">
+            <h2 class="text-3xl font-black text-slate-800 mb-10 tracking-tighter uppercase flex items-center gap-4">
+                <i class="ph-bold ph-chart-line-up text-brand-600"></i> Reporting Overview
+            </h2>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+                <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Total Tickets</p>
+                    <h3 class="text-4xl font-black text-slate-800">{{ stats.total }}</h3>
+                </div>
+                <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center border-b-4 border-b-green-500">
+                    <p class="text-[10px] font-black text-green-500 uppercase mb-1 tracking-widest">Active</p>
+                    <h3 class="text-4xl font-black text-green-600">{{ stats.open }}</h3>
+                </div>
+                <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Resolved</p>
+                    <h3 class="text-4xl font-black text-slate-700">{{ stats.resolved }}</h3>
+                </div>
+                <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
+                    <p class="text-[10px] font-black text-brand-500 uppercase mb-1 tracking-widest">Replies Logged</p>
+                    <h3 class="text-4xl font-black text-brand-600">{{ stats.total_replies }}</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
+                    <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Tickets per Client</h3>
+                    <canvas id="clientPieChart"></canvas>
+                </div>
+                <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
+                    <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Top Requesters</h3>
+                    <canvas id="requesterChart"></canvas>
+                </div>
+                <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
+                    <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Issue Types</h3>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm h-[450px]">
+                    <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Pipeline Overview</h3>
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://dloeemdnthbuggjdgcqr.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_9bfetZ1wSX73tKoPxug__g_QbK4sfT8';
-  const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/21408403/uex0g0l/';
+    const SUPABASE_URL = 'https://dloeemdnthbuggjdgcqr.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_9bfetZ1wSX73tKoPxug__g_QbK4sfT8';
+    const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/21408403/uex0g0l/';
 
-  const { createApp, ref, computed, onMounted, nextTick } = Vue;
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
-  createApp({
-    setup() {
-      const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    createApp({
+        setup() {
+            const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      // Tune these to match your reality:
-      const BOT_SENDERS = [
-        'workflow bot',
-        'zapier',
-        'solutions team', // if your bot posts as this
-        'ask-for-a-solution'
-      ];
+            const BOT_SENDERS = [
+                'workflow bot',
+                'zapier',
+                'solutions desk',
+                'solutions guy',
+                'ask-for-a-solution'
+            ];
 
-      const currentView = ref('tickets');
-      const tickets = ref([]);
-      const agentName = ref('Solutions Team');
-      const searchQuery = ref('');
-      const filterStatus = ref('All');
-      const selectedTicket = ref(null);
-      const loading = ref(false);
-      const saving = ref(false);
-      const sendingReply = ref(false);
-      const replyText = ref('');
-      const hideBotLogs = ref(false);
+            const currentView = ref('tickets');
+            const tickets = ref([]);
+            const agentName = ref('Solutions Team');
+            const searchQuery = ref('');
+            const filterStatus = ref('All');
+            const selectedTicket = ref(null);
+            const loading = ref(false);
+            const saving = ref(false);
+            const sendingReply = ref(false);
+            const replyText = ref('');
+            const hideBotLogs = ref(false);
 
-      const stats = ref({ total: 0, open: 0, resolved: 0, total_replies: 0 });
-      const form = ref({ status: 'Open', issue_category: '', client_name: '', notes: '' });
-      let charts = {};
+            const stats = ref({ total: 0, open: 0, resolved: 0, total_replies: 0 });
+            const form = ref({ status: 'Open', issue_category: '', client_name: '', notes: '' });
+            let charts = {};
 
-      // Helpers
-      const normalize = (text) => {
-        if (!text || text.trim() === '' || text.toLowerCase().includes('unknown')) return 'Unclassified';
-        return text.trim()
-          .replace(/^@/, '')
-          .toLowerCase()
-          .replace(/\s+/g, ' ')
-          .split(' ')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
-      };
+            const normalize = (text) => {
+                if (!text || text.trim() === '' || (text || '').toLowerCase().includes('unknown')) return 'Unclassified';
+                return text.trim()
+                    .replace(/^@/, '')
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ')
+                    .split(' ')
+                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ');
+            };
 
-      const isBot = (row) => {
-        const sender = (row.sender || '').toLowerCase();
-        if (row.is_bot === true) return true; // if you add column later
-        return BOT_SENDERS.some(b => sender.includes(b));
-      };
+            const isBot = (row) => {
+                if (row?.is_bot === true) return true;
+                const sender = (row?.sender || '').toLowerCase();
+                return BOT_SENDERS.some(b => sender.includes(b));
+            };
 
-      const computeThreadParentTs = (row) => {
-        // canonical thread key: replies have thread_ts, parents use their own slack_ts
-        const st = (row.slack_ts || '').toString();
-        const tt = (row.thread_ts || '').toString();
-        return (tt && tt.length > 0) ? tt : st;
-      };
+            const computeThreadParentTs = (row) => {
+                const st = (row?.slack_ts || '').toString();
+                const tt = (row?.thread_ts || '').toString();
+                return (tt && tt.length > 0) ? tt : st;
+            };
 
-      const isParentRow = (row) => {
-        const threadParent = computeThreadParentTs(row);
-        const st = (row.slack_ts || '').toString();
-        return st && threadParent && st === threadParent;
-      };
+            const isParentRow = (row) => {
+                const threadParent = row.thread_parent_ts || computeThreadParentTs(row);
+                const st = (row?.slack_ts || '').toString();
+                return st && threadParent && st === threadParent;
+            };
 
-      // Main fetch & grouping
-      const fetchTickets = async () => {
-        loading.value = true;
+            const updateStats = () => {
+                stats.value.total = tickets.value.length;
+                stats.value.open = tickets.value.filter(t => t.status !== 'Resolved').length;
+                stats.value.resolved = tickets.value.filter(t => t.status === 'Resolved').length;
+                stats.value.total_replies = tickets.value.reduce((acc, t) => acc + (t.replies?.length || 0), 0);
+            };
 
-        const { data, error } = await sb
-          .from('tickets')
-          .select('*')
-          .order('created_at', { ascending: false });
+            const fetchTickets = async () => {
+                loading.value = true;
 
-        if (error) {
-          console.error(error);
-          loading.value = false;
-          return;
-        }
+                const { data, error } = await sb.from('tickets').select('*').order('created_at', { ascending: false });
+                if (error) {
+                    console.error('Supabase fetch error:', error);
+                    loading.value = false;
+                    return;
+                }
 
-        const rows = (data || []).map(r => ({
-          ...r,
-          thread_parent_ts: r.thread_parent_ts || computeThreadParentTs(r) // works even without DB column
-        }));
+                const rows = (data || []).map(r => ({
+                    ...r,
+                    thread_parent_ts: r.thread_parent_ts || computeThreadParentTs(r)
+                }));
 
-        // 1) Partition into parents + logs by thread_parent_ts
-        const parentsByThread = new Map();      // thread_parent_ts -> parent row
-        const logsByThread = new Map();         // thread_parent_ts -> [rows]
+                const parentsByThread = new Map();
+                const logsByThread = new Map();
 
-        for (const row of rows) {
-          const threadKey = row.thread_parent_ts;
+                for (const row of rows) {
+                    const threadKey = row.thread_parent_ts || computeThreadParentTs(row);
+                    const bot = isBot(row);
 
-          // Never allow a bot message to CREATE a ticket (become a parent)
-          const bot = isBot(row);
+                    if (isParentRow(row)) {
+                        if (!bot) {
+                            if (!parentsByThread.has(threadKey)) parentsByThread.set(threadKey, row);
+                        } else {
+                            if (!logsByThread.has(threadKey)) logsByThread.set(threadKey, []);
+                            logsByThread.get(threadKey).push(row);
+                        }
+                    } else {
+                        if (!logsByThread.has(threadKey)) logsByThread.set(threadKey, []);
+                        logsByThread.get(threadKey).push(row);
+                    }
+                }
 
-          if (isParentRow(row)) {
-            if (!bot) {
-              // prefer latest "real" parent if duplicates exist
-              if (!parentsByThread.has(threadKey)) parentsByThread.set(threadKey, row);
-            } else {
-              // bot parent -> ignore as ticket creator
-              // but still keep as log if you want:
-              if (!logsByThread.has(threadKey)) logsByThread.set(threadKey, []);
-              logsByThread.get(threadKey).push(row);
-            }
-          } else {
-            if (!logsByThread.has(threadKey)) logsByThread.set(threadKey, []);
-            logsByThread.get(threadKey).push(row);
-          }
-        }
+                const builtTickets = [];
+                for (const [threadKey, parent] of parentsByThread.entries()) {
+                    let logs = (logsByThread.get(threadKey) || [])
+                        .slice()
+                        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-        // 2) Build ticket list from parents
-        const builtTickets = [];
-        for (const [threadKey, parent] of parentsByThread.entries()) {
-          const logs = (logsByThread.get(threadKey) || [])
-            .slice()
-            .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+                    if (hideBotLogs.value) logs = logs.filter(l => !isBot(l));
 
-          // Optional: hide bot logs in UI
-          const filteredLogs = hideBotLogs.value ? logs.filter(l => !isBot(l)) : logs;
+                    // basic dedupe
+                    const seen = new Set();
+                    const deduped = [];
+                    for (const l of logs) {
+                        const sig = `${(l.sender || '').toLowerCase()}|${(l.message || '').trim()}|${threadKey}`;
+                        if (seen.has(sig)) continue;
+                        seen.add(sig);
+                        deduped.push(l);
+                    }
 
-          // Basic dedupe to prevent “dashboard insert” + “slack insert” duplicates
-          const deduped = [];
-          const seen = new Set();
-          for (const l of filteredLogs) {
-            const sig = `${(l.sender||'').toLowerCase()}|${(l.message||'').trim()}|${threadKey}`;
-            if (seen.has(sig)) continue;
-            seen.add(sig);
-            deduped.push(l);
-          }
+                    builtTickets.push({ ...parent, thread_parent_ts: threadKey, replies: deduped });
+                }
 
-          builtTickets.push({
-            ...parent,
-            thread_parent_ts: threadKey,
-            replies: deduped
-          });
-        }
+                builtTickets.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                tickets.value = builtTickets;
 
-        // 3) Sort tickets newest first
-        builtTickets.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-        tickets.value = builtTickets;
+                if (selectedTicket.value) {
+                    const updated = tickets.value.find(t => t.id === selectedTicket.value.id);
+                    if (updated) selectedTicket.value = updated;
+                }
 
-        // keep selected ticket fresh
-        if (selectedTicket.value) {
-          const updated = tickets.value.find(t => t.id === selectedTicket.value.id);
-          if (updated) selectedTicket.value = updated;
-        }
+                updateStats();
+                if (currentView.value === 'analytics') nextTick(() => renderCharts());
+                loading.value = false;
+            };
 
-        updateStats();
-        if (currentView.value === 'analytics') nextTick(() => renderCharts());
-        loading.value = false;
-      };
+            const filteredTickets = computed(() => tickets.value.filter(t => {
+                const s = searchQuery.value.toLowerCase();
+                const matches = (t.sender || '').toLowerCase().includes(s) ||
+                    (t.client_name || '').toLowerCase().includes(s) ||
+                    (t.message || '').toLowerCase().includes(s);
+                return matches && (filterStatus.value === 'All' || t.status === filterStatus.value);
+            }));
 
-      const updateStats = () => {
-        stats.value.total = tickets.value.length;
-        stats.value.open = tickets.value.filter(t => t.status !== 'Resolved').length;
-        stats.value.resolved = tickets.value.filter(t => t.status === 'Resolved').length;
-        stats.value.total_replies = tickets.value.reduce((acc,t) => acc + (t.replies?.length || 0), 0);
-      };
+            const getSmartSender = (t) => {
+                let n = t.sender || 'Unknown';
+                if (t.message) {
+                    const m = t.message.match(/(?:Ticket logged by):\s*(.+?)(?:\n|$)/i);
+                    if (m) n = m[1].trim();
+                }
+                return n.replace(/^@/, '');
+            };
 
-      // UI computed
-      const filteredTickets = computed(() => tickets.value.filter(t => {
-        const s = searchQuery.value.toLowerCase();
-        const matches = (t.sender||'').toLowerCase().includes(s)
-          || (t.client_name||'').toLowerCase().includes(s)
-          || (t.message||'').toLowerCase().includes(s);
-        return matches && (filterStatus.value === 'All' || t.status === filterStatus.value);
-      }));
+            const getSmartClient = (m) => {
+                if (!m) return '';
+                const match = m.match(/(?:Client|Client Name):\s*(.+?)(?:\n|$)/i);
+                return match ? match[1].trim() : '';
+            };
 
-      const getSmartSender = (t) => {
-        let n = t.sender || 'Unknown';
-        if (t.message) {
-          const m = t.message.match(/(?:Ticket logged by):\s*(.+?)(?:\n|$)/i);
-          if (m) n = m[1].trim();
-        }
-        return n.replace(/^@/, '');
-      };
+            const getSmartSummary = (m) => {
+                const match = (m || '').match(/(?:Details):\s*(.+)(?:\n|$)/i);
+                return (match ? match[1].trim() : (m || '')).substring(0, 100);
+            };
 
-      const getSmartClient = (m) => {
-        if (!m) return '';
-        const match = m.match(/(?:Client|Client Name):\s*(.+?)(?:\n|$)/i);
-        return match ? match[1].trim() : '';
-      };
+            const isAgentReply = (r) => (r.sender || '') === agentName.value || (r.sender || '') === 'Solutions Team';
 
-      const getSmartSummary = (m) => {
-        const match = (m || '').match(/(?:Details):\s*(.+)(?:\n|$)/i);
-        return (match ? match[1].trim() : (m || '')).substring(0, 100);
-      };
+            const selectTicket = (t) => {
+                selectedTicket.value = t;
+                replyText.value = '';
+                form.value = {
+                    status: t.status || 'Open',
+                    issue_category: t.issue_category || '',
+                    client_name: t.client_name || getSmartClient(t.message),
+                    notes: t.notes || ''
+                };
+            };
 
-      const isAgentReply = (r) => (r.sender || '') === agentName.value || (r.sender || '') === 'Solutions Team';
+            const saveChanges = async () => {
+                saving.value = true;
+                const { error } = await sb.from('tickets').update(form.value).eq('id', selectedTicket.value.id);
+                if (!error) {
+                    Object.assign(selectedTicket.value, form.value);
+                    updateStats();
+                } else {
+                    console.error('Save error:', error);
+                    alert('Save failed. Check console.');
+                }
+                saving.value = false;
+            };
 
-      const selectTicket = (t) => {
-        selectedTicket.value = t;
-        replyText.value = '';
-        form.value = {
-          status: t.status || 'Open',
-          issue_category: t.issue_category || '',
-          client_name: t.client_name || getSmartClient(t.message),
-          notes: t.notes || ''
-        };
-      };
+            const deleteTicket = async () => {
+                if (!confirm('Permanently delete this ticket AND its logs?')) return;
 
-      const saveChanges = async () => {
-        saving.value = true;
-        const { error } = await sb.from('tickets').update(form.value).eq('id', selectedTicket.value.id);
-        if (!error) {
-          Object.assign(selectedTicket.value, form.value);
-          updateStats();
-        }
-        saving.value = false;
-      };
+                const threadKey = selectedTicket.value.thread_parent_ts || selectedTicket.value.slack_ts;
 
-      const deleteTicket = async () => {
-        if (!confirm('Permanently delete?')) return;
+                await sb.from('tickets').delete().eq('thread_ts', threadKey);
+                await sb.from('tickets').delete().eq('slack_ts', threadKey);
 
-        // delete parent + logs in thread
-        const threadKey = selectedTicket.value.thread_parent_ts || selectedTicket.value.slack_ts;
-        await sb.from('tickets').delete().eq('thread_ts', threadKey);
-        await sb.from('tickets').delete().eq('slack_ts', threadKey);
+                tickets.value = tickets.value.filter(t => t.id !== selectedTicket.value.id);
+                selectedTicket.value = null;
+                updateStats();
+            };
 
-        tickets.value = tickets.value.filter(t => t.id !== selectedTicket.value.id);
-        selectedTicket.value = null;
-        updateStats();
-      };
+            // ✅ Thread-safe reply sender:
+            // Sends `thread_ts` (parent ts) to Zapier so Zapier can map it to Slack "Thread Timestamp".
+            const sendReply = async () => {
+                if (!replyText.value || !selectedTicket.value) return;
+                sendingReply.value = true;
 
-      // Reply: sends to Slack thread via Zapier, and logs it locally
-      const sendReply = async () => {
-        if (!replyText.value || !selectedTicket.value) return;
-        sendingReply.value = true;
+                try {
+                    const threadParentTs = (selectedTicket.value.thread_parent_ts
+                        || selectedTicket.value.thread_ts
+                        || selectedTicket.value.slack_ts
+                        || '').toString();
 
-        try {
-          const threadParent = selectedTicket.value.thread_parent_ts || selectedTicket.value.slack_ts;
+                    if (!threadParentTs) {
+                        alert('Missing thread timestamp for this ticket.');
+                        return;
+                    }
 
-          // 1) Send to Zapier (which posts to Slack thread)
-          const params = new URLSearchParams();
-          params.append('reply_text', replyText.value);
-          params.append('thread_ts', threadParent);
-          params.append('slack_channel', selectedTicket.value.slack_channel);
-          params.append('ticket_id', selectedTicket.value.id);
-          params.append('sender', agentName.value);
+                    const params = new URLSearchParams();
+                    params.append('reply_text', replyText.value);
+                    params.append('thread_ts', threadParentTs); // ✅ critical
+                    params.append('slack_channel', selectedTicket.value.slack_channel || '');
+                    params.append('ticket_id', selectedTicket.value.id);
+                    params.append('sender', agentName.value);
 
-          await fetch(ZAPIER_WEBHOOK_URL, { method: 'POST', mode: 'no-cors', body: params });
+                    await fetch(ZAPIER_WEBHOOK_URL, { method: 'POST', mode: 'no-cors', body: params });
 
-          // 2) Insert local log row (source = dashboard)
-          const { data, error } = await sb.from('tickets').insert({
-            message: replyText.value,
-            sender: agentName.value,
-            slack_ts: `dashboard_${Date.now()}`,
-            thread_ts: threadParent,
-            thread_parent_ts: threadParent,   // if column exists, great; otherwise ignored
-            status: selectedTicket.value.status,
-            slack_channel: selectedTicket.value.slack_channel,
-            source: 'dashboard',
-            is_bot: false
-          }).select();
+                    // Local log insert (so the dashboard updates instantly)
+                    const { data, error } = await sb.from('tickets').insert({
+                        message: replyText.value,
+                        sender: agentName.value,
+                        slack_ts: `dashboard_${Date.now()}`,
+                        thread_ts: threadParentTs,
+                        thread_parent_ts: threadParentTs,
+                        status: selectedTicket.value.status || 'In Progress',
+                        slack_channel: selectedTicket.value.slack_channel,
+                        source: 'dashboard',
+                        is_bot: false
+                    }).select();
 
-          if (!error && data?.[0]) {
-            if (!selectedTicket.value.replies) selectedTicket.value.replies = [];
-            selectedTicket.value.replies.push(data[0]);
-          }
+                    if (!error && data?.[0]) {
+                        if (!selectedTicket.value.replies) selectedTicket.value.replies = [];
+                        selectedTicket.value.replies.push(data[0]);
+                    }
 
-          replyText.value = '';
+                    replyText.value = '';
 
-          // auto move Open -> In Progress
-          if (form.value.status === 'Open') {
-            form.value.status = 'In Progress';
-            await saveChanges();
-          }
+                    if ((form.value?.status || selectedTicket.value.status) === 'Open') {
+                        form.value.status = 'In Progress';
+                        await saveChanges();
+                    }
 
-        } catch (e) {
-          console.error(e);
-          alert('Failed to send reply.');
-        } finally {
-          sendingReply.value = false;
-        }
-      };
+                    alert('Reply sent to thread!');
+                } catch (e) {
+                    console.error('Error:', e);
+                    alert('Error sending reply. Check console and Zapier mapping for thread_ts.');
+                } finally {
+                    sendingReply.value = false;
+                }
+            };
 
-      // Export (Tickets only)
-      const exportCSV = () => {
-        let csv = "TicketID,ThreadParentTS,CreatedAt,Sender,Client,Category,Status,Message,Notes\n";
-        tickets.value.forEach(t => {
-          const date = new Date(t.created_at).toISOString();
-          const cleanMsg = (t.message || '').replace(/"/g, '""').replace(/\n/g, ' ');
-          csv += `${t.id},${t.thread_parent_ts||''},${date},${getSmartSender(t)},${t.client_name||''},${t.issue_category||''},${t.status},"${cleanMsg}","${(t.notes||'').replace(/"/g,'""')}"\n`;
-        });
+            const exportCSV = () => {
+                let csv = "TicketID,ThreadParentTS,CreatedAt,Sender,Client,Category,Status,Message,Notes\n";
+                tickets.value.forEach(t => {
+                    const date = new Date(t.created_at).toISOString();
+                    const cleanMsg = (t.message || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                    csv += `${t.id},${t.thread_parent_ts || ''},${date},${getSmartSender(t)},${t.client_name || ''},${t.issue_category || ''},${t.status},"${cleanMsg}","${(t.notes || '').replace(/"/g, '""')}"\n`;
+                });
 
-        const link = document.createElement("a");
-        link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
-        link.setAttribute("download", "solutions_desk_tickets.csv");
-        link.click();
-      };
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
+                link.setAttribute("download", "solutions_desk_tickets.csv");
+                link.click();
+            };
 
-      // Export XLSX (Tickets + Logs flattened for mapping)
-      const exportXLSX = () => {
-        const ticketRows = tickets.value.map(t => ({
-          ticket_id: t.id,
-          thread_parent_ts: t.thread_parent_ts,
-          slack_channel: t.slack_channel || '',
-          created_at: t.created_at,
-          sender: getSmartSender(t),
-          client: t.client_name || getSmartClient(t.message),
-          issue_category: t.issue_category || '',
-          status: t.status || '',
-          message: t.message || '',
-          notes: t.notes || ''
-        }));
+            const exportXLSX = () => {
+                const ticketRows = tickets.value.map(t => ({
+                    ticket_id: t.id,
+                    thread_parent_ts: t.thread_parent_ts || '',
+                    slack_channel: t.slack_channel || '',
+                    created_at: t.created_at,
+                    sender: getSmartSender(t),
+                    client: t.client_name || getSmartClient(t.message),
+                    issue_category: t.issue_category || '',
+                    status: t.status || '',
+                    message: t.message || '',
+                    notes: t.notes || ''
+                }));
 
-        const logRows = [];
-        tickets.value.forEach(t => {
-          (t.replies || []).forEach(r => {
-            logRows.push({
-              ticket_id: t.id,
-              thread_parent_ts: t.thread_parent_ts,
-              slack_channel: t.slack_channel || '',
-              log_created_at: r.created_at,
-              log_sender: r.sender || '',
-              log_is_bot: isBot(r),
-              log_source: r.source || '',
-              log_message: r.message || ''
+                const logRows = [];
+                tickets.value.forEach(t => {
+                    (t.replies || []).forEach(r => {
+                        logRows.push({
+                            ticket_id: t.id,
+                            thread_parent_ts: t.thread_parent_ts || '',
+                            slack_channel: t.slack_channel || '',
+                            log_created_at: r.created_at,
+                            log_sender: r.sender || '',
+                            log_is_bot: isBot(r),
+                            log_source: r.source || '',
+                            log_message: r.message || ''
+                        });
+                    });
+                });
+
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ticketRows), "Tickets");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(logRows), "Logs");
+                XLSX.writeFile(wb, "solutions_desk_export.xlsx");
+            };
+
+            const renderCharts = () => {
+                const countBy = (arr, fn) => {
+                    const c = {};
+                    arr.forEach(i => {
+                        const k = fn(i);
+                        if (!k || k === 'Unclassified') return;
+                        c[k] = (c[k] || 0) + 1;
+                    });
+                    return c;
+                };
+
+                const clC = countBy(tickets.value, t => normalize(t.client_name || getSmartClient(t.message)));
+                const sendC = countBy(tickets.value, t => normalize(getSmartSender(t)));
+                const catC = countBy(tickets.value, t => t.issue_category || 'Unclassified');
+                const stC = countBy(tickets.value, t => t.status || 'Open');
+
+                const draw = (id, type, labels, data, backgroundColor) => {
+                    if (charts[id]) charts[id].destroy();
+                    const canvas = document.getElementById(id);
+                    if (!canvas) return;
+                    charts[id] = new Chart(canvas, {
+                        type,
+                        data: { labels, datasets: [{ data, backgroundColor, borderWidth: 0 }] },
+                        options: {
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold', size: 10 } } } }
+                        }
+                    });
+                };
+
+                draw('clientPieChart', 'pie', Object.keys(clC).slice(0, 8), Object.values(clC).slice(0, 8),
+                    ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9']);
+                draw('requesterChart', 'bar', Object.keys(sendC).slice(0, 8), Object.values(sendC).slice(0, 8), '#8b5cf6');
+                draw('categoryChart', 'doughnut', Object.keys(catC), Object.values(catC), ['#3b82f6', '#10b981', '#ef4444', '#94a3b8']);
+                draw('statusChart', 'bar', Object.keys(stC), Object.values(stC), ['#22c55e', '#3b82f6', '#cbd5e1']);
+            };
+
+            const switchView = (v) => {
+                currentView.value = v;
+                if (v === 'analytics') nextTick(() => renderCharts());
+            };
+
+            const formatDateFull = (d) => new Date(d).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+            const getStatusColor = (s) =>
+                s === 'Open' ? 'bg-green-100 text-green-700' :
+                    s === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                        s === 'Resolved' ? 'bg-slate-100 text-slate-600' :
+                            'bg-slate-100 text-slate-600';
+
+            onMounted(() => {
+                fetchTickets();
+                sb.channel('realtime')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchTickets)
+                    .subscribe();
             });
-          });
-        });
 
-        const wb = XLSX.utils.book_new();
-        const ws1 = XLSX.utils.json_to_sheet(ticketRows);
-        const ws2 = XLSX.utils.json_to_sheet(logRows);
-
-        XLSX.utils.book_append_sheet(wb, ws1, "Tickets");
-        XLSX.utils.book_append_sheet(wb, ws2, "Logs");
-
-        XLSX.writeFile(wb, "solutions_desk_export.xlsx");
-      };
-
-      // Charts
-      const renderCharts = () => {
-        const countBy = (arr, fn) => {
-          const c = {};
-          arr.forEach(i => {
-            const k = fn(i);
-            if (!k || k === 'Unclassified') return;
-            c[k] = (c[k] || 0) + 1;
-          });
-          return c;
-        };
-
-        const clC = countBy(tickets.value, t => normalize(t.client_name || getSmartClient(t.message)));
-        const sendC = countBy(tickets.value, t => normalize(getSmartSender(t)));
-        const catC = countBy(tickets.value, t => t.issue_category || 'Unclassified');
-        const stC  = countBy(tickets.value, t => t.status || 'Open');
-
-        const draw = (id, type, labels, data, bg) => {
-          if (charts[id]) charts[id].destroy();
-          const canvas = document.getElementById(id);
-          if (!canvas) return;
-          charts[id] = new Chart(canvas, {
-            type,
-            data: { labels, datasets: [{ data, backgroundColor: bg, borderWidth: 0 }] },
-            options: {
-              maintainAspectRatio: false,
-              plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold', size: 10 } } } }
-            }
-          });
-        };
-
-        draw('clientPieChart', 'pie', Object.keys(clC).slice(0,8), Object.values(clC).slice(0,8),
-          ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9']);
-        draw('requesterChart', 'bar', Object.keys(sendC).slice(0,8), Object.values(sendC).slice(0,8), '#8b5cf6');
-        draw('categoryChart', 'doughnut', Object.keys(catC), Object.values(catC), ['#3b82f6', '#10b981', '#ef4444', '#94a3b8']);
-        draw('statusChart', 'bar', Object.keys(stC), Object.values(stC), ['#22c55e', '#3b82f6', '#cbd5e1']);
-      };
-
-      const switchView = (v) => {
-        currentView.value = v;
-        if (v === 'analytics') nextTick(() => renderCharts());
-      };
-
-      const formatDateFull = (d) => new Date(d).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-      const getStatusColor = (s) =>
-        s === 'Open' ? 'bg-green-100 text-green-700' :
-        s === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-        s === 'Resolved' ? 'bg-slate-100 text-slate-600' :
-        'bg-slate-100 text-slate-600';
-
-      onMounted(() => {
-        fetchTickets();
-        sb.channel('realtime')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchTickets)
-          .subscribe();
-      });
-
-      return {
-        currentView, switchView, stats, agentName, tickets, filteredTickets, selectedTicket, form,
-        loading, saving, sendingReply, replyText, searchQuery, filterStatus, hideBotLogs,
-        fetchTickets, selectTicket, saveChanges, deleteTicket, sendReply,
-        exportCSV, exportXLSX,
-        formatDateFull, getStatusColor,
-        getSmartSender, getSmartClient, getSmartSummary,
-        isAgentReply, isBot
-      };
-    }
-  }).mount('#app');
+            return {
+                currentView, switchView, stats, agentName, tickets, filteredTickets, selectedTicket,
+                form, loading, saving, sendingReply, replyText, searchQuery, filterStatus, hideBotLogs,
+                fetchTickets, selectTicket, saveChanges, deleteTicket, sendReply,
+                exportCSV, exportXLSX,
+                formatDateFull, getStatusColor,
+                getSmartSender, getSmartClient, getSmartSummary,
+                isAgentReply, isBot
+            };
+        }
+    }).mount('#app');
 </script>
 </body>
 </html>
