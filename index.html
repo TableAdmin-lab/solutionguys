@@ -573,7 +573,13 @@
             // Helper: Normalize text
             const normalizeText = (text) => {
                 if (!text) return 'Unknown';
-                return text.toLowerCase().trim().replace(/\s+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                // Remove leading @ and format
+                return text.trim().replace(/^@/, '')
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ')
+                    .split(' ')
+                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ');
             };
 
             // Render Charts
@@ -645,10 +651,16 @@
             };
 
             const getSmartSender = (ticket) => {
-                if (!ticket.message) return ticket.sender || 'Unknown';
-                const match = ticket.message.match(/(?:Ticket logged by):\s*(.+?)(?:\n|$)/i);
-                if (match) return match[1].trim();
-                return ticket.sender || 'Unknown';
+                let name = 'Unknown';
+                if (ticket.message) {
+                    const match = ticket.message.match(/(?:Ticket logged by):\s*(.+?)(?:\n|$)/i);
+                    if (match) name = match[1].trim();
+                    else name = ticket.sender || 'Unknown';
+                } else {
+                    name = ticket.sender || 'Unknown';
+                }
+                // Remove leading @
+                return name.replace(/^@/, '');
             };
 
             const getSmartClient = (message) => {
